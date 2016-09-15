@@ -1,9 +1,8 @@
 #pragma once
 
-#include <pie/noncopyable.hpp>
-#include <pie/memory.hpp>
-#include <pie/mutex.hpp>
-#include <pie/vector.hpp>
+#include <memory>
+#include <mutex>
+#include <vector>
 
 #include <pie/asio/io_operation.hpp>
 
@@ -26,11 +25,11 @@ namespace detail {
 	};
 
 	template<class Owner>
-	class io_completion_port : private pie::noncopyable
+	class io_completion_port
 	{
 	public:
 		typedef HANDLE handle_type;
-		typedef pie::unique_ptr<io_port_context> context_pointer;
+		typedef std::unique_ptr<io_port_context> context_pointer;
 
 		io_completion_port() noexcept :
 			m_handle(::CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 0))
@@ -52,9 +51,9 @@ namespace detail {
 				// Associate the object and custom context with our completion port
 				if (::CreateIoCompletionPort(object_handle, m_handle, reinterpret_cast<ULONG_PTR>(context_ptr->object_handle), 0) == m_handle)
 				{
-					pie::lock_guard<pie::mutex> lock(m_mutex);
+					std::lock_guard<pie::mutex> lock(m_mutex);
 					
-					m_contexts.emplace_back(pie::move(context_ptr));
+					m_contexts.emplace_back(std::move(context_ptr));
 					
 					return true;
 				}
@@ -99,8 +98,8 @@ namespace detail {
 	protected:
 	private:
 		HANDLE m_handle;
-		pie::vector<context_pointer> m_contexts;
-		pie::mutex m_mutex;
+		std::vector<context_pointer> m_contexts;
+		std::mutex m_mutex;
 
 		void handle_operation(LPOVERLAPPED overlapped, DWORD bytes_transferred) const
 		{
@@ -114,7 +113,7 @@ namespace detail {
 				{
 					if (io_data->on_connect != nullptr)
 					{
-						pie::error_code ec;
+                        std::error_code ec;
 						io_data->on_connect(ec);
 					}
 				}
@@ -124,8 +123,8 @@ namespace detail {
 				{
 					if (io_data->on_write != nullptr)
 					{
-						pie::error_code ec;
-						io_data->on_write(static_cast<pie::size_t>(bytes_transferred), ec);
+                        std::error_code ec;
+						io_data->on_write(static_cast<std::size_t>(bytes_transferred), ec);
 					}
 				}
 				break;

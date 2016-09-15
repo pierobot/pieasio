@@ -2,9 +2,9 @@
 
 #include <pie/asio/net/detail/winsock_wrapper.hpp>
 #include <pie/asio/assignable_object.hpp>
-#include <pie/system_error.hpp>
 
-#include <pie/string.hpp>
+#include <system_error>
+#include <string>
 
 namespace pie {
 namespace asio {
@@ -21,7 +21,7 @@ namespace detail
 		{
 		}
 		
-		basic_socket(pie::asio::net::address_family family, pie::error_code ec = pie::error_code()) noexcept :
+		basic_socket(pie::asio::net::address_family family, std::error_code ec = std::error_code()) noexcept :
 			m_family(family),
 			m_handle(pie::asio::net::detail::create_socket(family, pie::asio::net::socket_type::stream, pie::asio::net::socket_protocol::tcp, ec))
 		{
@@ -43,12 +43,12 @@ namespace detail
 			return m_family;
 		}
 
-		bool set_nonblocking(pie::error_code & ec = pie::error_code())
+		bool set_nonblocking(std::error_code & ec = std::error_code())
 		{
 			if (detail::set_nonblocking(m_handle, ec) == false)
 			{
 				m_handle = INVALID_SOCKET;
-				ec = pie::error_code(::WSAGetLastError(), pie::system_category());
+				ec = std::error_code(::WSAGetLastError(), std::system_category());
 				return false;
 			}
 

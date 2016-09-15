@@ -1,13 +1,16 @@
 #pragma once
 
-#include <pie/atomic.hpp>
-#include <pie/asio/detail/windows_io_completion_port.hpp>
+#include <atomic>
+
+#ifdef _WIN32
+#	include <pie/asio/detail/windows_io_completion_port.hpp>
+#endif
 
 namespace pie
 {
 	namespace asio
 	{
-		class io_service : private pie::noncopyable
+		class io_service
 		{
 		public:
 			typedef detail::io_completion_port<io_service> completion_port_type;
@@ -44,7 +47,7 @@ namespace pie
 		protected:
 		private:
 			completion_port_type m_iocp;
-			pie::atomic<bool> m_continue;
+			std::atomic<bool> m_continue;
 		};
 	}
 }
