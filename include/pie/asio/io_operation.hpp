@@ -1,7 +1,7 @@
 #pragma once
 
-#include <pie/functional.hpp>
-#include <pie/system_error.hpp>
+#include <functional>
+#include <system_error>
 
 #ifdef _WIN32
 #	include <pie/asio/detail/windows_iocp_operation.hpp>
@@ -24,9 +24,9 @@ namespace pie
 
 		struct io_operation_data : public detail::io_operation_data
 		{
-			typedef pie::function<void(pie::error_code const&)> on_connect_type;
-			typedef pie::function<void(pie::size_t, pie::error_code const&)> on_write_type;
-			typedef pie::function<void(pie::string, pie::size_t, pie::error_code const&)> on_read_type;
+			typedef std::function<void(std::error_code const&)> on_connect_type;
+			typedef std::function<void(std::size_t, std::error_code const&)> on_write_type;
+			typedef std::function<void(std::string, std::size_t, std::error_code const&)> on_read_type;
 
 			union
 			{
@@ -36,7 +36,7 @@ namespace pie
 			};	
 
 			int operation;
-			pie::string buffer;
+			std::string buffer;
 
 			io_operation_data(int op) :
 				detail::io_operation_data(),
@@ -52,9 +52,9 @@ namespace pie
 			{
 			}
 
-			static pie::unique_ptr<io_operation_data> create(int operation)
+			static std::unique_ptr<io_operation_data> create(int operation)
 			{
-				return pie::unique_ptr<io_operation_data>(new io_operation_data(operation));
+				return std::unique_ptr<io_operation_data>(new io_operation_data(operation));
 			}
 		};
 

@@ -1,10 +1,10 @@
 #pragma once
 
-#include <pie/stdint.hpp>
-#include <pie/memory.hpp>
+#include <memory>
+#include <system_error>
+
 #include <pie/asio/net/socket.hpp>
 #include <pie/asio/io_operation.hpp>
-#include <pie/system_error.hpp>
 
 namespace pie
 {
@@ -13,19 +13,19 @@ namespace pie
 		namespace detail
 		{
 			bool read(pie::asio::net::socket const & socket,
-				      pie::size_t size,
+				      std::size_t size,
 				      pie::asio::on_read_type && on_read,
-				      pie::error_code & ec)
+				      std::error_code & ec)
 			{
 				auto io_data_ptr = pie::asio::io_operation_data::create(io_operation::IO_ERROR);
 				if (io_data_ptr == nullptr)
 				{
-					ec = pie::error_code(ERROR_NOT_ENOUGH_MEMORY, pie::system_category());
+					ec = std::error_code(ERROR_NOT_ENOUGH_MEMORY, std::system_category());
 				}
 				else
 				{
 					io_data_ptr->buffer.resize(size);
-					io_data_ptr->on_read = pie::move(on_read);
+					io_data_ptr->on_read = std::move(on_read);
 
 					WSABUF buf;
 					buf.buf = const_cast<char *>(io_data_ptr->buffer.c_str());
@@ -40,7 +40,7 @@ namespace pie
 						return true;
 					}
 
-					ec = pie::error_code(::WSAGetLastError(), pie::system_category());
+					ec = std::error_code(::WSAGetLastError(), std::system_category());
 					if (ec.value() == WSA_IO_PENDING)
 					{
 						io_data_ptr.release();

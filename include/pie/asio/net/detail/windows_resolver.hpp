@@ -1,6 +1,6 @@
 #pragma once
 
-#include <pie/string.hpp>
+#include <string>
 
 #include <WinSock2.h>
 
@@ -13,7 +13,7 @@ namespace pie
 			class resolver
 			{
 			public:
-				resolver(pie::string const & hostname, uint16_t port) noexcept :
+				resolver(std::string const & hostname, uint16_t port) noexcept :
 					m_hostent(::gethostbyname(hostname.c_str())),
 					m_port(port)
 				{

@@ -1,9 +1,5 @@
 #pragma once
 
-#include <pie/functional.hpp>
-#include <pie/string.hpp>
-#include <pie/stdint.hpp>
-#include <pie/system_error.hpp>
 #include <pie/asio/net/socket.hpp>
 #include <pie/asio/net/resolver.hpp>
 
@@ -12,6 +8,10 @@
 #else
 #endif
 
+#include <functional>
+#include <string>
+#include <system_error>
+
 namespace pie {
 namespace asio {
 namespace net {
@@ -19,9 +19,9 @@ namespace net {
 	bool connect(pie::asio::net::socket const & socket,
 	  			 pie::asio::net::resolver const & resolver,
 				 pie::asio::io_operation_data::on_connect_type && on_connect,
-				 pie::error_code & ec) noexcept
+				 std::error_code & ec) noexcept
 	{
-		return detail::connect(socket, resolver, pie::move(on_connect), ec);
+		return detail::connect(socket, resolver, std::move(on_connect), ec);
 	}
 
 }

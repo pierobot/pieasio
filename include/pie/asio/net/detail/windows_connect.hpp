@@ -3,7 +3,9 @@
 #include <pie/asio/io_operation.hpp>
 #include <pie/asio/net/socket.hpp>
 #include <pie/asio/net/resolver.hpp>
-#include <pie/system_error.hpp>
+
+#include <system_error>
+
 #include <MSWSock.h>
 
 namespace pie {
@@ -19,7 +21,7 @@ namespace detail {
 	bool connect(pie::asio::net::socket const & socket,
 				 pie::asio::net::resolver const & resolver,
 				 pie::asio::io_operation_data::on_connect_type && on_connect,
-		         pie::error_code & ec) noexcept
+		         std::error_code & ec) noexcept
 	{
 		// Initialize the function pointer if not done so already
 		if (ConnectEx == nullptr)
@@ -32,7 +34,7 @@ namespace detail {
 				                   &bytes, nullptr, nullptr);
 			if (result == SOCKET_ERROR)
 			{
-				ec = pie::error_code(::WSAGetLastError(), pie::system_category());
+				ec = std::error_code(::WSAGetLastError(), std::system_category());
 				return false;
 			}
 		}
@@ -42,12 +44,12 @@ namespace detail {
 			auto io_data_ptr = pie::asio::io_operation_data::create(IO_CONNECT);
 			if (io_data_ptr == nullptr)
 			{
-				ec = pie::error_code(ERROR_NOT_ENOUGH_MEMORY, pie::system_category());
+				ec = std::error_code(ERROR_NOT_ENOUGH_MEMORY, std::system_category());
 				return false;
 			}
 
 			// Assign the on connect handler
-			io_data_ptr->on_connect = pie::move(on_connect);
+			io_data_ptr->on_connect = std::move(on_connect);
 
 			sockaddr_in addr_in{};
 			addr_in.sin_port = ::htons(resolver.get_port());
@@ -56,7 +58,7 @@ namespace detail {
 			// ConnectEx requires the socket to be bound to INADDR_ANY
 			if (::bind(socket.get_handle(), reinterpret_cast<sockaddr*>(&addr_in), sizeof(sockaddr)) != 0)
 			{
-				ec = pie::error_code(::WSAGetLastError(), pie::system_category());
+				ec = std::error_code(::WSAGetLastError(), std::system_category());
 				return false;
 			}
 
@@ -69,11 +71,11 @@ namespace detail {
 			if (result == TRUE)
 			{
 				io_data_ptr.release();
-				ec = pie::error_code();
+				ec = std::error_code();
 				return true;
 			}
 
-			ec = pie::error_code(::WSAGetLastError(), pie::system_category());
+			ec = std::error_code(::WSAGetLastError(), std::system_category());
 			if (ec.value() == ERROR_IO_PENDING)
 			{
 				io_data_ptr.release();
@@ -82,7 +84,7 @@ namespace detail {
 		}
 		else
 		{
-			ec = pie::error_code(ERROR_NOT_ENOUGH_MEMORY, pie::system_category());
+			ec = std::error_code(ERROR_NOT_ENOUGH_MEMORY, std::system_category());
 		}
 
 		return false;
