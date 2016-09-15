@@ -5,15 +5,15 @@
 
 namespace pie
 {
-	namespace asio
-	{
-		namespace net
-		{
-			enum socket_protocol
-			{
-				tcp = IPPROTO_TCP,
-				udp = IPPROTO_UDP,
-			};
-		}
-	}
+    namespace asio
+    {
+        namespace net
+        {
+            enum socket_protocol
+            {
+                tcp = IPPROTO_TCP,
+                udp = IPPROTO_UDP,
+            };
+        }
+    }
 }

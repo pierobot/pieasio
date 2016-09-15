@@ -5,15 +5,15 @@
 
 namespace pie
 {
-	namespace asio
-	{
-		namespace net
-		{
-			enum socket_type
-			{
-				stream = SOCK_STREAM,
-				datagram = SOCK_DGRAM
-			};
-		}
-	}
+    namespace asio
+    {
+        namespace net
+        {
+            enum socket_type
+            {
+                stream = SOCK_STREAM,
+                datagram = SOCK_DGRAM
+            };
+        }
+    }
 }
