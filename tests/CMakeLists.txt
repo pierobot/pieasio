@@ -1,0 +1,7 @@
+INCLUDE_DIRECTORIES(../include)
+
+FILE(GLOB TEST_SRC
+	main.cpp
+)
+
+ADD_EXECUTABLE(tests ${TEST_SRC})
