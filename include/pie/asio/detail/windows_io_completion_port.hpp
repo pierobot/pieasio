@@ -51,7 +51,7 @@ namespace detail {
                 // Associate the object and custom context with our completion port
                 if (::CreateIoCompletionPort(object_handle, m_handle, reinterpret_cast<ULONG_PTR>(context_ptr->object_handle), 0) == m_handle)
                 {
-                    std::lock_guard<pie::mutex> lock(m_mutex);
+                    std::lock_guard<std::mutex> lock(m_mutex);
                     
                     m_contexts.emplace_back(std::move(context_ptr));
                     
@@ -113,8 +113,7 @@ namespace detail {
                 {
                     if (io_data->on_connect != nullptr)
                     {
-                        std::error_code ec;
-                        io_data->on_connect(ec);
+                         io_data->on_connect(std::error_code());
                     }
                 }
                 break;
@@ -123,14 +122,20 @@ namespace detail {
                 {
                     if (io_data->on_write != nullptr)
                     {
-                        std::error_code ec;
-                        io_data->on_write(static_cast<std::size_t>(bytes_transferred), ec);
+                        io_data->on_write(static_cast<std::size_t>(bytes_transferred), std::error_code());
                     }
                 }
                 break;
 
                 case io_operation::IO_READ:
-                    break;
+                {
+                    if (io_data->on_read != nullptr)
+                    {
+                        
+                    }
+                }
+                break;
+
                 default:
                     break;
                 }

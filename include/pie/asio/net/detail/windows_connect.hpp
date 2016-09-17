@@ -44,7 +44,7 @@ namespace detail {
             auto io_data_ptr = pie::asio::io_operation_data::create(IO_CONNECT);
             if (io_data_ptr == nullptr)
             {
-                ec = std::error_code(ERROR_NOT_ENOUGH_MEMORY, std::system_category());
+                ec = std::make_error_code(std::errc::not_enough_memory);
                 return false;
             }
 
@@ -70,21 +70,22 @@ namespace detail {
             // 2. Return value is FALSE and WSAGetLastError() == ERROR_IO_PENDING
             if (result == TRUE)
             {
-                io_data_ptr.release();
                 ec = std::error_code();
+                io_data_ptr.release();
                 return true;
             }
 
-            ec = std::error_code(::WSAGetLastError(), std::system_category());
-            if (ec.value() == ERROR_IO_PENDING)
+            if (::WSAGetLastError() == ERROR_IO_PENDING)
             {
+                ec = std::make_error_code(std::errc::operation_in_progress);
+
                 io_data_ptr.release();
                 return true;
             }
         }
         else
         {
-            ec = std::error_code(ERROR_NOT_ENOUGH_MEMORY, std::system_category());
+            ec = std::make_error_code(std::errc::not_enough_memory);
         }
 
         return false;
