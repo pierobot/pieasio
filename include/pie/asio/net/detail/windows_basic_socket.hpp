@@ -21,7 +21,7 @@ namespace detail
         {
         }
         
-        basic_socket(pie::asio::net::address_family family, std::error_code ec = std::error_code()) noexcept :
+        basic_socket(pie::asio::net::address_family family, std::error_code & ec = std::error_code()) noexcept :
             m_family(family),
             m_handle(pie::asio::net::detail::create_socket(family, pie::asio::net::socket_type::stream, pie::asio::net::socket_protocol::tcp, ec))
         {
