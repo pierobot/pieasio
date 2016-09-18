@@ -2,6 +2,8 @@
 
 #include <atomic>
 
+#include <pie/asio/associable.hpp>
+
 #ifdef _WIN32
 #   include <pie/asio/detail/windows_io_completion_port.hpp>
 #endif
@@ -24,10 +26,12 @@ namespace pie
             {
             }
 
-            template<class AssignableObject>
-            bool assign(AssignableObject const & object)
+            template<class AssociableObject>
+            bool associate(AssociableObject const & object, std::error_code & ec)
             {
-                return m_iocp.associate(reinterpret_cast<native_handle_type>(object.get_handle()));
+                static_assert(pie::asio::is_associable<AssociableObject>::value, "Invalid object parameter. It must inherit and implement pie::asio::associable_object.");
+
+                return m_iocp.associate(reinterpret_cast<native_handle_type>(object.get_handle()), ec);
             }
 
             void poll()

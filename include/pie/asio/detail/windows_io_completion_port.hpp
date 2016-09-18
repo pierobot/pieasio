@@ -41,7 +41,7 @@ namespace detail {
             ::CloseHandle(m_handle);
         }
 
-        bool associate(HANDLE object_handle)
+        bool associate(HANDLE object_handle, std::error_code & ec)
         {
             // Create our internal context
             context_pointer context_ptr(new io_port_context(object_handle));
@@ -51,16 +51,17 @@ namespace detail {
                 // Associate the object and custom context with our completion port
                 if (::CreateIoCompletionPort(object_handle, m_handle, reinterpret_cast<ULONG_PTR>(context_ptr->object_handle), 0) == m_handle)
                 {
-                    std::lock_guard<std::mutex> lock(m_mutex);
+                    {
+                        std::lock_guard<std::mutex> lock(m_mutex);
+                        m_contexts.emplace_back(std::move(context_ptr));
+                    }
                     
-                    m_contexts.emplace_back(std::move(context_ptr));
-                    
+                    ec = std::error_code();
                     return true;
                 }
                 else
                 {
-                    int i = GetLastError();
-                    ++i;
+                    ec = std::error_code(::WSAGetLastError(), std::system_category());
                 }
             }
             
@@ -73,7 +74,7 @@ namespace detail {
             ULONG_PTR key = 0;
             LPOVERLAPPED overlapped = nullptr;
             
-            BOOL success = ::GetQueuedCompletionStatus(m_handle, &bytes_transferred, &key, &overlapped, 250);
+            BOOL success = ::GetQueuedCompletionStatus(m_handle, &bytes_transferred, &key, &overlapped, 1000);
             if (success == TRUE)
             {
                 handle_operation(overlapped, bytes_transferred);
