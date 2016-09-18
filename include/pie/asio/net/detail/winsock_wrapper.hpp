@@ -17,7 +17,7 @@ namespace pie
                 inline SOCKET create_socket(pie::asio::net::address_family family,
                                             pie::asio::net::socket_type type,
                                             pie::asio::net::socket_protocol protocol,
-                                            std::error_code & ec)
+                                            std::error_code & ec) noexcept
                 {
                     SOCKET s = ::WSASocketW(family, type, protocol, nullptr, 0, WSA_FLAG_OVERLAPPED);
                     if (s == INVALID_SOCKET)
@@ -26,12 +26,12 @@ namespace pie
                     return s;
                 }
 
-                inline void close_socket(SOCKET handle)
+                inline void close_socket(SOCKET handle) noexcept
                 {
                     ::closesocket(handle);
                 }
 
-                inline bool set_nonblocking(SOCKET handle, std::error_code & ec)
+                inline bool set_nonblocking(SOCKET handle, std::error_code & ec) noexcept
                 {
                     unsigned long arg = -1;
                     if (::ioctlsocket(handle, FIONBIO, &arg) == SOCKET_ERROR)

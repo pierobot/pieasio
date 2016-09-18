@@ -43,7 +43,7 @@ namespace detail
             return m_family;
         }
 
-        bool set_nonblocking(std::error_code & ec = std::error_code())
+        bool set_nonblocking(std::error_code & ec = std::error_code()) noexcept
         {
             if (detail::set_nonblocking(m_handle, ec) == false)
             {

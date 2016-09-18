@@ -96,7 +96,7 @@ namespace pie
                 auto io_data_ptr = pie::asio::io_operation_data::create(io_operation::IO_WRITE);
                 if (io_data_ptr == nullptr)
                 {
-                    ec = std::error_code(ERROR_NOT_ENOUGH_MEMORY, std::system_category());
+                    ec = std::make_error_code(std::errc::not_enough_memory);
                 }
                 else
                 {
