@@ -1,7 +1,7 @@
 #pragma once
 
 #include <pie/asio/net/detail/winsock_wrapper.hpp>
-#include <pie/asio/assignable_object.hpp>
+#include <pie/asio/associable.hpp>
 
 #include <system_error>
 #include <string>
@@ -11,7 +11,7 @@ namespace asio {
 namespace net {
 namespace detail
 {
-    class basic_socket
+    class basic_socket : public pie::asio::associable_object<SOCKET>
     {
     public:
         typedef SOCKET native_handle;
@@ -33,7 +33,7 @@ namespace detail
                 pie::asio::net::detail::close_socket(m_handle);
         }
         
-        native_handle get_handle() const noexcept
+        virtual native_handle get_handle() const noexcept override final
         {
             return m_handle;
         }
