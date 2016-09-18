@@ -21,7 +21,7 @@ namespace detail {
     bool connect(pie::asio::net::socket const & socket,
                  pie::asio::net::resolver const & resolver,
                  pie::asio::io_operation_data::on_connect_type && on_connect,
-                 std::error_code & ec) noexcept
+                 std::error_code & ec)
     {
         // Initialize the function pointer if not done so already
         if (ConnectEx == nullptr)

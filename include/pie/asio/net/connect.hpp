@@ -19,7 +19,7 @@ namespace net {
     bool connect(pie::asio::net::socket const & socket,
                  pie::asio::net::resolver const & resolver,
                  pie::asio::io_operation_data::on_connect_type && on_connect,
-                 std::error_code & ec) noexcept
+                 std::error_code & ec)
     {
         return detail::connect(socket, resolver, std::move(on_connect), ec);
     }

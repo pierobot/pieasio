@@ -43,6 +43,7 @@ namespace pie
                     ec = std::error_code(::WSAGetLastError(), std::system_category());
                     if (ec.value() == WSA_IO_PENDING)
                     {
+                        ec = std::make_error_code(std::errc::operation_in_progress);
                         io_data_ptr.release();
                         return true;
                     }
