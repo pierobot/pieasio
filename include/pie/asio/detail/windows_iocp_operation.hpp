@@ -14,9 +14,11 @@ namespace pie
             struct io_operation_data
             {
                 OVERLAPPED ov;
+                WSABUF wsabuf;
 
-                io_operation_data() :
-                    ov()
+                io_operation_data() noexcept :
+                    ov(),
+                    wsabuf()
                 {
                 }
 
