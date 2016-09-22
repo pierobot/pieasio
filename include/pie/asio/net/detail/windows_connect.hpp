@@ -4,6 +4,7 @@
 #include <pie/asio/net/socket.hpp>
 #include <pie/asio/net/resolver.hpp>
 
+#include <memory>
 #include <system_error>
 
 #include <MSWSock.h>
@@ -41,16 +42,20 @@ namespace detail {
 
         if (resolver.valid() == true)
         {
-            auto io_data_ptr = pie::asio::io_operation_data::create(IO_CONNECT);
+            auto & io_service = pie::asio::net::get_io_service(socket);
+            auto & context_manager = pie::asio::get_context_manager(io_service);
+
+            auto io_data_ptr = context_manager.get_free_context();
             if (io_data_ptr == nullptr)
             {
                 ec = std::make_error_code(std::errc::not_enough_memory);
                 return false;
             }
 
+            io_data_ptr->operation = io_operation::IO_CONNECT;
             // Assign the on connect handler
             io_data_ptr->on_connect = std::move(on_connect);
-
+            
             sockaddr_in addr_in{};
             addr_in.sin_port = ::htons(resolver.get_port());
             addr_in.sin_family = socket.get_family();
@@ -71,15 +76,17 @@ namespace detail {
             if (result == TRUE)
             {
                 ec = std::error_code();
-                io_data_ptr.release();
+                context_manager.assign_pending_context(std::move(io_data_ptr));
+
                 return true;
             }
 
-            if (::WSAGetLastError() == ERROR_IO_PENDING)
+            ec = std::error_code(::WSAGetLastError(), std::system_category());
+            if (ec.value() == ERROR_IO_PENDING)
             {
                 ec = std::make_error_code(std::errc::operation_in_progress);
+                context_manager.assign_pending_context(std::move(io_data_ptr));
 
-                io_data_ptr.release();
                 return true;
             }
         }

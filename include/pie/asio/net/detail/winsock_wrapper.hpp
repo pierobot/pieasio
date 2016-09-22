@@ -6,6 +6,10 @@
 #include <pie/asio/net/socket_protocol.hpp>
 #include <pie/asio/net/socket_type.hpp>
 
+#include <pie/asio/config.hpp>
+
+#include <MSWSock.h>
+
 namespace pie
 {
     namespace asio
@@ -14,10 +18,10 @@ namespace pie
         {
             namespace detail
             {
-                inline SOCKET create_socket(pie::asio::net::address_family family,
-                                            pie::asio::net::socket_type type,
-                                            pie::asio::net::socket_protocol protocol,
-                                            std::error_code & ec) noexcept
+                inline native_socket_type socket(pie::asio::net::address_family family,
+                                                 pie::asio::net::socket_type type,
+                                                 pie::asio::net::socket_protocol protocol,
+                                                 std::error_code & ec) noexcept
                 {
                     SOCKET s = ::WSASocketW(family, type, protocol, nullptr, 0, WSA_FLAG_OVERLAPPED);
                     if (s == INVALID_SOCKET)
@@ -26,9 +30,45 @@ namespace pie
                     return s;
                 }
 
-                inline void close_socket(SOCKET handle) noexcept
+                inline void shutdown(native_socket_type s, int how, std::error_code & ec) noexcept
                 {
-                    ::closesocket(handle);
+                    if (::shutdown(s, how) == SOCKET_ERROR)
+                    {
+                        ec = std::error_code(::WSAGetLastError(), std::system_category());
+                        switch (ec.value())
+                        {
+                        case WSAEINPROGRESS:
+                            ec = std::make_error_code(std::errc::operation_in_progress);
+                            break;
+
+                        case WSAECONNABORTED:
+                            ec = std::make_error_code(std::errc::connection_aborted);
+                            break;
+
+                        case WSAECONNRESET:
+                            ec = std::make_error_code(std::errc::connection_reset);
+                            break;
+
+                        case WSAENETDOWN:
+                            ec = std::make_error_code(std::errc::network_down);
+                        default:
+                            break;
+                        }                        
+                    }
+                    else
+                    {
+                        ec = std::error_code();
+                    }
+                }
+
+                inline void closesocket(SOCKET handle) noexcept
+                {
+                    if (::closesocket(handle) == SOCKET_ERROR)
+                    {
+                        std::error_code error = std::error_code(::WSAGetLastError(), std::system_category());
+                        
+                        int x = 0;
+                    }
                 }
 
                 inline bool set_nonblocking(SOCKET handle, std::error_code & ec) noexcept
@@ -41,6 +81,11 @@ namespace pie
                     }
 
                     return true;
+                }
+
+                inline bool update_connect_context(SOCKET handle) noexcept
+                {
+                    return ::setsockopt(handle, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, NULL, 0) != SOCKET_ERROR;
                 }
             }
         }

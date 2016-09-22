@@ -2,8 +2,10 @@
 
 #include <memory>
 #include <mutex>
-#include <vector>
+#include <unordered_map>
 
+#include <pie/asio/config.hpp>
+#include <pie/asio/context_manager.hpp>
 #include <pie/asio/io_operation.hpp>
 
 #include <Windows.h>
@@ -12,27 +14,16 @@ namespace pie {
 namespace asio {
 namespace detail {
     
-    struct io_port_context
-    {
-        OVERLAPPED overlapped;
-        HANDLE object_handle;
-
-        io_port_context(HANDLE handle) :
-            object_handle(handle),
-            overlapped{}
-        {
-        }
-    };
-
-    template<class Owner>
+    template<class IoService>
     class io_completion_port
     {
     public:
-        typedef HANDLE handle_type;
-        typedef std::unique_ptr<io_port_context> context_pointer;
+        typedef typename IoService::context_pointer_type context_pointer_type;
+        typedef pie::asio::context_manager<pie::asio::io_operation_data> context_manager_type;
 
-        io_completion_port() noexcept :
-            m_handle(::CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 0))
+        io_completion_port(context_manager_type & context_manager) noexcept :
+            m_handle(::CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 0)),
+            m_context_manager(context_manager)
         {
         }
 
@@ -41,30 +32,21 @@ namespace detail {
             ::CloseHandle(m_handle);
         }
 
-        bool associate(HANDLE object_handle, std::error_code & ec)
+        bool associate(native_handle_type object_handle, std::error_code & ec)
         {
-            // Create our internal context
-            context_pointer context_ptr(new io_port_context(object_handle));
-            if (context_ptr != nullptr)
+            // Associate the object and custom context with the completion port
+            if (::CreateIoCompletionPort(object_handle, m_handle, reinterpret_cast<ULONG_PTR>(object_handle), 0) == m_handle)
             {
-                context_ptr->object_handle = object_handle;
-                // Associate the object and custom context with our completion port
-                if (::CreateIoCompletionPort(object_handle, m_handle, reinterpret_cast<ULONG_PTR>(context_ptr->object_handle), 0) == m_handle)
-                {
-                    {
-                        std::lock_guard<std::mutex> lock(m_mutex);
-                        m_contexts.emplace_back(std::move(context_ptr));
-                    }
-                    
-                    ec = std::error_code();
-                    return true;
-                }
-                else
-                {
-                    ec = std::error_code(::WSAGetLastError(), std::system_category());
-                }
+                // Successfully associated the object with the completion port
+                ec = std::error_code();
+                return true;
             }
-            
+            else
+            {
+                // Failed to associate the object with the completion port
+                ec = std::error_code(::WSAGetLastError(), std::system_category());
+            }
+
             return false;
         }
 
@@ -74,19 +56,51 @@ namespace detail {
             ULONG_PTR key = 0;
             LPOVERLAPPED overlapped = nullptr;
             
-            BOOL success = ::GetQueuedCompletionStatus(m_handle, &bytes_transferred, &key, &overlapped, 1000);
+            // Attempt to dequeue a completion packet
+            BOOL success = ::GetQueuedCompletionStatus(m_handle, &bytes_transferred, &key, &overlapped, 500);
+            // Was there an error?
             if (success == TRUE)
             {
-                handle_operation(overlapped, bytes_transferred);
+                // No
+                // Was the completion port requested to be gracefully closed by us?
+                native_handle_type handle = reinterpret_cast<native_handle_type>(key);
+                if (handle == m_handle)
+                {
+                    // Yes, but wait for any outstanding operations to complete
+                    return 0;
+                }
+
+                // No, forward the data
+                on_event(handle, overlapped, bytes_transferred);
             }
             else
             {
-                int last_error = ::WSAGetLastError();
-                // Was the completion port closed?
-                if (overlapped == nullptr && last_error == ERROR_ABANDONED_WAIT_0)
+                DWORD flags = 0;
+                // Is the socket shutting down?
+                if (overlapped != nullptr && bytes_transferred == 0)
                 {
-                    // Yes, do cleanup
-                    int x = 0;
+                    // Yes
+                    pie::asio::net::detail::closesocket(static_cast<native_socket_type>(key));
+                }
+
+                // No, do further checking
+                int last_error = ::WSAGetLastError();
+                // Did the wait time-out?
+                if (last_error != ERROR_ABANDONED_WAIT_0)
+                {
+                    // No - unhandled error
+                    return 0;
+                }
+
+                // Did we utterly fail to dequeue a completion packet?
+                if (overlapped == nullptr)
+                {
+                    // Yes
+                    std::cout << "COMPLETION PACKET FAILURE";
+                }
+                else
+                {
+                    // No. 
                 }
             }
 
@@ -98,42 +112,58 @@ namespace detail {
         }
     protected:
     private:
-        HANDLE m_handle;
-        std::vector<context_pointer> m_contexts;
-        std::mutex m_mutex;
+        native_handle_type m_handle;
+        context_manager_type & m_context_manager;
 
-        void handle_operation(LPOVERLAPPED overlapped, DWORD bytes_transferred) const
+        void on_event(HANDLE handle, LPOVERLAPPED overlapped, DWORD bytes_transferred) const
         {
             if (overlapped != nullptr)
             {
-                pie::asio::io_operation_data * io_data = CONTAINING_RECORD(overlapped, pie::asio::io_operation_data, ov);
+                context_pointer_type io_data_ptr = m_context_manager.get_pending_context(CONTAINING_RECORD(overlapped, pie::asio::io_operation_data, ov));
+                if (io_data_ptr == nullptr)
+                    return;
 
-                switch (io_data->operation)
+                switch (io_data_ptr->operation)
                 {
                 case io_operation::IO_CONNECT:
                 {
-                    if (io_data->on_connect != nullptr)
+                    // Required. ConnectEx does not automatically update the socket context.
+                    // We must do this to use the socket with functions such as getpeername, getsockname, getsockopt, setsockopt, and shutdown
+                    pie::asio::net::detail::update_connect_context(reinterpret_cast<native_socket_type>(handle));
+
+                    if (io_data_ptr->on_connect != nullptr)
                     {
-                         io_data->on_connect(std::error_code());
+                        // Call the connect handler
+                        io_data_ptr->on_connect(std::error_code());
                     }
+                    
+                    m_context_manager.assign_free_context(std::move(io_data_ptr));
                 }
                 break;
 
                 case io_operation::IO_WRITE:
                 {
-                    if (io_data->on_write != nullptr)
+                    if (io_data_ptr->on_write != nullptr)
                     {
-                        io_data->on_write(static_cast<std::size_t>(bytes_transferred), std::error_code());
+                        io_data_ptr->on_write(static_cast<std::size_t>(bytes_transferred), std::error_code());
                     }
+
+                    io_data_ptr->buffer = std::string();
+                    m_context_manager.assign_free_context(std::move(io_data_ptr));
                 }
                 break;
 
                 case io_operation::IO_READ:
                 {
-                    if (io_data->on_read != nullptr)
+                    if (io_data_ptr->on_read != nullptr)
                     {
-                        
+                        if (bytes_transferred > 0)
+                        {
+                            io_data_ptr->on_read(std::move(io_data_ptr->buffer), bytes_transferred, std::error_code());
+                        }
                     }
+
+                    m_context_manager.assign_free_context(std::move(io_data_ptr));
                 }
                 break;
 
@@ -141,6 +171,11 @@ namespace detail {
                     break;
                 }
             }
+        }
+
+        void on_error(LPOVERLAPPED overlapped) const
+        {
+
         }
     };
 }

@@ -18,6 +18,7 @@ namespace pie
             IO_ACCEPT,
             IO_CONNECT,
             IO_READ,
+            IO_READ_UNTIL,
             IO_WRITE,
             IO_CLOSE
         };
@@ -38,7 +39,17 @@ namespace pie
             int operation;
             std::string buffer;
 
-            io_operation_data(int op) :
+            io_operation_data() noexcept :
+                detail::io_operation_data(),
+                on_connect(),
+                on_write(),
+                on_read(),
+                operation(IO_ERROR),
+                buffer()
+            {
+            }
+
+            io_operation_data(int op) noexcept :
                 detail::io_operation_data(),
                 on_connect(),
                 on_write(),
