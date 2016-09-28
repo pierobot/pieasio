@@ -8,20 +8,17 @@
 #include <type_traits>
 
 #include <pie/asio/noncopyable.hpp>
+#include <pie/asio/io_operation.hpp>
 
 namespace pie
 {
     namespace asio
     {
-        template<class Context>
         class context_manager : private noncopyable
         {
         public:
-            static_assert(std::is_nothrow_default_constructible<Context>::value, "Type Context must be nothrow default constructible.");
-
-            typedef Context context_type;
             typedef void * key_type;
-            typedef std::shared_ptr<context_type> context_pointer_type;
+            typedef std::shared_ptr<pie::asio::io_operation_data> context_pointer_type;
 
             context_manager() noexcept :
                 m_pending_mutex(),

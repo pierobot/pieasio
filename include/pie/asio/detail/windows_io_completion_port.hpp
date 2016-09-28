@@ -1,12 +1,13 @@
 #pragma once
 
+#include <iostream>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
 
+#include <pie/asio/detail/basic_poller.hpp>
 #include <pie/asio/config.hpp>
-#include <pie/asio/context_manager.hpp>
-#include <pie/asio/io_operation.hpp>
+#include <pie/asio/net/detail/socket.hpp>
 
 #include <Windows.h>
 
@@ -14,16 +15,12 @@ namespace pie {
 namespace asio {
 namespace detail {
     
-    template<class IoService>
-    class io_completion_port
+    class io_completion_port : public basic_poller
     {
     public:
-        typedef typename IoService::context_pointer_type context_pointer_type;
-        typedef pie::asio::context_manager<pie::asio::io_operation_data> context_manager_type;
-
-        io_completion_port(context_manager_type & context_manager) noexcept :
-            m_handle(::CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 0)),
-            m_context_manager(context_manager)
+        io_completion_port() noexcept :
+            basic_poller(),
+            m_handle(::CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 0))
         {
         }
 
@@ -50,7 +47,7 @@ namespace detail {
             return false;
         }
 
-        DWORD poll() const
+        virtual std::size_t poll() override final
         {
             DWORD bytes_transferred = 0;
             ULONG_PTR key = 0;
@@ -70,8 +67,11 @@ namespace detail {
                     return 0;
                 }
 
-                // No, forward the data
+                // Enqueue the operation
                 on_event(handle, overlapped, bytes_transferred);
+                // Dequeue a pending operation
+                auto fn = get_operation_manager().pop();
+                fn();
             }
             else
             {
@@ -80,7 +80,8 @@ namespace detail {
                 if (overlapped != nullptr && bytes_transferred == 0)
                 {
                     // Yes
-                    pie::asio::net::detail::closesocket(static_cast<native_socket_type>(key));
+                    std::error_code close_error;
+                    pie::asio::net::detail::close(static_cast<native_socket_type>(key), close_error);
                 }
 
                 // No, do further checking
@@ -113,13 +114,12 @@ namespace detail {
     protected:
     private:
         native_handle_type m_handle;
-        context_manager_type & m_context_manager;
 
-        void on_event(HANDLE handle, LPOVERLAPPED overlapped, DWORD bytes_transferred) const
+        void on_event(HANDLE handle, LPOVERLAPPED overlapped, DWORD bytes_transferred)
         {
             if (overlapped != nullptr)
             {
-                context_pointer_type io_data_ptr = m_context_manager.get_pending_context(CONTAINING_RECORD(overlapped, pie::asio::io_operation_data, ov));
+                context_pointer_type io_data_ptr = get_context_manager().get_pending_context(CONTAINING_RECORD(overlapped, pie::asio::io_operation_data, ov));
                 if (io_data_ptr == nullptr)
                     return;
 
@@ -127,43 +127,56 @@ namespace detail {
                 {
                 case io_operation::IO_CONNECT:
                 {
-                    // Required. ConnectEx does not automatically update the socket context.
-                    // We must do this to use the socket with functions such as getpeername, getsockname, getsockopt, setsockopt, and shutdown
-                    pie::asio::net::detail::update_connect_context(reinterpret_cast<native_socket_type>(handle));
-
-                    if (io_data_ptr->on_connect != nullptr)
+                    get_operation_manager().push([=]() mutable
                     {
-                        // Call the connect handler
-                        io_data_ptr->on_connect(std::error_code());
-                    }
-                    
-                    m_context_manager.assign_free_context(std::move(io_data_ptr));
+                        // Required. ConnectEx does not automatically update the socket context.
+                        // We must do this to use the socket with functions such as getpeername, getsockname, getsockopt, setsockopt, and shutdown
+                        std::error_code update_ec;
+                        pie::asio::net::detail::update_connect_context(reinterpret_cast<native_socket_type>(handle), update_ec);
+                        // Ensure the operation succeeded
+                        if (!update_ec)
+                        {
+                            if (io_data_ptr->on_connect != nullptr)
+                            {
+                                // Call the connect handler
+                                io_data_ptr->on_connect(std::error_code());
+                            }
+                        }
+
+                        get_context_manager().assign_free_context(std::move(io_data_ptr));
+                    });
                 }
                 break;
 
                 case io_operation::IO_WRITE:
                 {
-                    if (io_data_ptr->on_write != nullptr)
+                    get_operation_manager().push([=]() mutable
                     {
-                        io_data_ptr->on_write(static_cast<std::size_t>(bytes_transferred), std::error_code());
-                    }
+                        if (io_data_ptr->on_write != nullptr)
+                        {
+                            io_data_ptr->on_write(static_cast<std::size_t>(bytes_transferred), std::error_code());
+                        }
 
-                    io_data_ptr->buffer = std::string();
-                    m_context_manager.assign_free_context(std::move(io_data_ptr));
+                        io_data_ptr->buffer = std::string();
+                        get_context_manager().assign_free_context(std::move(io_data_ptr));
+                    });
                 }
                 break;
 
                 case io_operation::IO_READ:
                 {
-                    if (io_data_ptr->on_read != nullptr)
+                    get_operation_manager().push([=]() mutable
                     {
-                        if (bytes_transferred > 0)
+                        if (io_data_ptr->on_read != nullptr)
                         {
-                            io_data_ptr->on_read(std::move(io_data_ptr->buffer), bytes_transferred, std::error_code());
+                            if (bytes_transferred > 0)
+                            {
+                                io_data_ptr->on_read(std::move(io_data_ptr->buffer), bytes_transferred, std::error_code());
+                            }
                         }
-                    }
 
-                    m_context_manager.assign_free_context(std::move(io_data_ptr));
+                        get_context_manager().assign_free_context(std::move(io_data_ptr));
+                    });
                 }
                 break;
 
@@ -173,7 +186,7 @@ namespace detail {
             }
         }
 
-        void on_error(LPOVERLAPPED overlapped) const
+        void on_error(LPOVERLAPPED overlapped)
         {
 
         }

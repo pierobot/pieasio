@@ -4,10 +4,15 @@
 
 #include <pie/asio/associable.hpp>
 #include <pie/asio/noncopyable.hpp>
-#include <pie/asio/context_manager.hpp>
 
-#ifdef _WIN32
-#   include <pie/asio/detail/windows_io_completion_port.hpp>
+#if defined(_WIN32)
+#   if defined(PIE_ASIO_HAS_IOCP)
+#       include <pie/asio/detail/windows_io_completion_port.hpp>
+#   endif
+#elif defined(__linux__)
+#   if defined(PIE_ASIO_HAS_EPOLL)
+#	    include <pie/asio/detail/linux_aio_epoll.hpp>
+#   endif
 #endif
 
 namespace pie
@@ -17,16 +22,15 @@ namespace pie
         class io_service : private noncopyable
         {
         public:
-            typedef pie::asio::context_manager<pie::asio::io_operation_data> context_manager_type;
-            typedef context_manager_type::context_pointer_type context_pointer_type;
-#ifdef _WIN32
-            typedef pie::asio::detail::io_completion_port<io_service> completion_port_type;
+#if defined(_WIN32)
+            typedef pie::asio::detail::io_completion_port io_poller_type;
+#elif defined(__linux__)
+            typedef pie::asio::detail::io_epoll io_poller_type;
 #endif
 
 
-            io_service() : 
-                m_context_manager(),
-                m_iocp(m_context_manager)
+            io_service() :
+                m_poller()
             {
             }
 
@@ -39,12 +43,12 @@ namespace pie
             {
                 static_assert(pie::asio::is_associable<AssociableObject>::value, "Invalid object parameter. It must inherit and implement pie::asio::associable_object.");
 
-                return m_iocp.associate(reinterpret_cast<native_handle_type>(object.get_handle()), ec);
+                return m_poller.associate(reinterpret_cast<native_handle_type>(object.get_handle()), ec);
             }
 
             void poll()
             {
-                int bytes_transferred = m_iocp.poll();
+                int bytes_transferred = m_poller.poll();
                 if (bytes_transferred != 0)
                 {
 
@@ -59,16 +63,14 @@ namespace pie
 
         protected:
         private:
-            context_manager_type m_context_manager;
-            completion_port_type m_iocp;
+            io_poller_type m_poller;
             std::atomic<bool> m_continue;
-
-            friend auto get_context_manager(pie::asio::io_service & service) noexcept -> decltype(service.m_context_manager) &;
+            friend auto get_context_manager(pie::asio::io_service & service) noexcept -> decltype(m_poller.get_context_manager()) &;
         };
 
-        auto get_context_manager(pie::asio::io_service & service) noexcept -> decltype(service.m_context_manager) &
+        auto get_context_manager(pie::asio::io_service & service) noexcept -> decltype(service.m_poller.get_context_manager()) &
         {
-            return service.m_context_manager;
+            return service.m_poller.get_context_manager();
         }
     }
 }

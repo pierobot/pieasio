@@ -4,6 +4,7 @@
 #include <memory>
 
 #include <Windows.h>
+#include <Winsock2.h>
 
 namespace pie
 {
