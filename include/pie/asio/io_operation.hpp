@@ -62,11 +62,6 @@ namespace pie
             virtual ~io_operation_data()
             {
             }
-
-            static std::unique_ptr<io_operation_data> create(int operation)
-            {
-                return std::unique_ptr<io_operation_data>(new io_operation_data(operation));
-            }
         };
 
         using on_connect_type = io_operation_data::on_connect_type;
