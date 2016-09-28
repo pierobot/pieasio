@@ -1,6 +1,6 @@
 #pragma once
 
-#include <pie/asio/net/detail/winsock_wrapper.hpp>
+#include <pie/asio/net/detail/socket.hpp>
 #include <pie/asio/associable.hpp>
 
 #include <system_error>
