@@ -52,7 +52,6 @@ TEST_CASE("sockets")
             write_error = error;
             total_written += bytes_written;
             write_done = true;
-
         }, write_error);
 
         REQUIRE(write_result == true);
