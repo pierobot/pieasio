@@ -11,7 +11,7 @@
 #   endif
 #elif defined(__linux__)
 #   if defined(PIE_ASIO_HAS_EPOLL)
-#	    include <pie/asio/detail/linux_aio_epoll.hpp>
+#	    include <pie/asio/detail/linux_epoll.hpp>
 #   endif
 #endif
 

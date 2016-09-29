@@ -1,6 +1,7 @@
 #pragma once
 
 #include <sys/epoll.h>
+#include <unistd.h>
 
 #include <pie/asio/config.hpp>
 #include <pie/asio/get_error.hpp>
@@ -29,8 +30,8 @@ namespace pie
             bool associate(native_handle_type object_handle, std::error_code & ec) noexcept
             {
                 epoll_event event {};
-                // Indicate that we are interested in input, output, and errors
-                event.events = EPOLLIN | EPOLLOUT | EPOLLERR;
+                // Indicate that we are interested in edge-triggered, input, output, and errors
+                event.events = EPOLLET | EPOLLIN | EPOLLOUT | EPOLLERR;
                 // Will need this to know which handle an event belongs to
                 event.data.fd = object_handle;
                 // Associate the object with our epoll fd
@@ -50,7 +51,7 @@ namespace pie
                 epoll_event events[128];
                 std::error_code poll_error;
 
-                int events_ready = get_errno_error(::epoll_wait(m_epfd, &events, 128, 100), poll_error);
+                int events_ready = get_errno_error(::epoll_wait(m_epfd, &events[0], 128, 50), poll_error);
                 if (poll_error)
                     return 0;
 
@@ -86,19 +87,11 @@ namespace pie
 
                 case io_operation::IO_READ:
                 {
-                    aiocb * aio_data = io_data_ptr->aio_data;
-                    if (io_data_ptr->on_read != nullptr)
-                        io_data_ptr->on_read(std::move(io_data_ptr->buffer), aio_data->aio_nbytes, std::error_code());
                 }
                     break;
 
                 case io_operation::IO_WRITE:
                 {
-                    aiocb * aio_data = io_data_ptr->aio_data;
-                    if (io_data_ptr->on_write != nullptr)
-                        io_data_ptr->on_write(aio_data->aio_nbytes, std::error_code());
-
-                    io_data_ptr->buffer = std::string();
                 }
                     break;
 

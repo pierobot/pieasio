@@ -55,7 +55,7 @@ namespace detail {
             io_data_ptr->operation = io_operation::IO_CONNECT;
             // Assign the on connect handler
             io_data_ptr->on_connect = std::move(on_connect);
-            
+
             sockaddr_in addr_in{};
             addr_in.sin_port = ::htons(resolver.get_port());
             addr_in.sin_family = socket.get_family();

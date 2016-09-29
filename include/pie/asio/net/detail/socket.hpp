@@ -12,6 +12,7 @@
 #   include <MSWSock.h>
 #elif defined(__linux__)
 #   include <errno.h>
+#   include <unistd.h>
 #   include <sys/socket.h>
 #   include <stropts.h>
 

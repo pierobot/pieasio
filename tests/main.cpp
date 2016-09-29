@@ -46,7 +46,7 @@ TEST_CASE("sockets")
 
         REQUIRE(connect_error.value() == 0);
 
-        write_result = pie::asio::write(socket, request_str,
+/*        write_result = pie::asio::write(socket, request_str,
             [&](std::size_t bytes_written, std::error_code const & error)
         {
             write_error = error;
@@ -81,6 +81,7 @@ TEST_CASE("sockets")
 
         REQUIRE(read_error.value() == 0);
         REQUIRE(response_str == "HTTP/1.1 200 OK");
+*/
     }
 }
 

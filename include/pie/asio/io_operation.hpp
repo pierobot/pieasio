@@ -6,6 +6,7 @@
 #ifdef _WIN32
 #   include <pie/asio/detail/windows_iocp_operation.hpp>
 #else
+#   include <pie/asio/detail/linux_operation.hpp>
 #endif
 
 namespace pie
@@ -42,8 +43,6 @@ namespace pie
             io_operation_data() noexcept :
                 detail::io_operation_data(),
                 on_connect(),
-                on_write(),
-                on_read(),
                 operation(IO_ERROR),
                 buffer()
             {
@@ -52,8 +51,6 @@ namespace pie
             io_operation_data(int op) noexcept :
                 detail::io_operation_data(),
                 on_connect(),
-                on_write(),
-                on_read(),
                 operation(op),
                 buffer()
             {

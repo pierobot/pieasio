@@ -3,8 +3,6 @@
 #include <string>
 #include <memory>
 
-#include <aio.h>
-
 namespace pie
 {
     namespace asio
@@ -14,7 +12,6 @@ namespace pie
             struct io_operation_data
             {
                 int fd;
-                aiocb * aio_data;
 
                 io_operation_data() noexcept
                 {

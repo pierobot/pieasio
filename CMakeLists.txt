@@ -11,7 +11,7 @@ IF(WIN32)
         ADD_DEFINITIONS(-DPIE_ASIO_HAS_IOCP)
     ENDIF()
 ELSEIF(UNIX)
-    SET(SYSTEM_NAME "${SYSTEM_NAME}" CACHE INTERNAL "")
+    SET(SYSTEM_NAME "${CMAKE_SYSTEM_NAME}" CACHE INTERNAL "")
 
     IF (SYSTEM_NAME STREQUAL "Linux")
 #       Use epoll and aio in Linux  
@@ -26,6 +26,13 @@ ELSEIF(UNIX)
             MESSAGE(ERROR "Unable to locate sys/epoll.h")
         ENDIF()
    ENDIF() 
+ENDIF()
+
+IF(WIN32)
+ELSEIF(UNIX)
+    IF (SYSTEM_NAME STREQUAL "Linux")
+        SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall")
+    ENDIF()
 ENDIF()
 
 ADD_SUBDIRECTORY(tests)
