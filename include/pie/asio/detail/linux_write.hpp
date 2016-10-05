@@ -6,12 +6,26 @@
 #include <pie/asio/net/socket.hpp>
 #include <pie/asio/io_operation.hpp>
 
+#include <unistd.h>
+
 namespace pie
 {
     namespace asio
     {
         namespace detail
         {
+            /*
+             * Writes the specified buffer to the socket.
+             * The buffer is not copied - therefore, the user is responsible for managing its lifetime.
+             *
+             * @param socket The socket object.
+             * @param buffer A pointer to the buffer,
+             * @param size The size of the buffer.
+             * @param on_write A function object that will be called on completion or i/o error.
+             * @param ec An object that will hold any errors.
+             *
+             * @return True on success; otherwise false.
+             */
             bool write(pie::asio::net::socket const & socket,
                        char const * buffer,
                        std::size_t size,
@@ -31,31 +45,37 @@ namespace pie
                     io_data_ptr->operation = io_operation::IO_WRITE;
                     io_data_ptr->on_write = std::move(on_write);
 
-                    io_data_ptr->wsabuf.buf = const_cast<char *>(buffer);
-                    io_data_ptr->wsabuf.len = size;
-                    
-                    int result = ::WSASend(socket.get_handle(), &io_data_ptr->wsabuf, 1, nullptr, 0, reinterpret_cast<WSAOVERLAPPED*>(&io_data_ptr->ov), nullptr);
-                    if (result != SOCKET_ERROR)
+                    io_data_ptr->fd = socket.get_handle();
+                    // Directly use the raw buffer
+                    ssize_t result = get_errno_error(::write(io_data_ptr->fd, buffer, size), ec);
+                    if (result > 0)
                     {
                         context_manager.assign_pending_context(std::move(io_data_ptr));
                         return true;
                     }
 
-                    ec = std::error_code(::WSAGetLastError(), std::system_category());
-                    if (ec.value() == WSA_IO_PENDING)
+                    if (ec.value() == EAGAIN || ec.value() == EWOULDBLOCK)
                     {
                         ec = make_error_code(std::errc::operation_in_progress);
                         context_manager.assign_pending_context(std::move(io_data_ptr));
                         return true;
                     }
-
-                    // Operation failed
-                    context_manager.assign_free_context(std::move(io_data_ptr));
                 }
 
                 return false;
             }
 
+            /*
+             * Writes the specified buffer to the socket.
+             * The buffer is copied and managed by the library.
+             *
+             * @param socket The socket object.
+             * @param buffer A string containiing a buffer.
+             * @param on_write A function object that will be called on completion or i/o error.
+             * @param ec An object that will hold any errors.
+             *
+             * @return True on success; otherwise false.
+             */
             bool write(pie::asio::net::socket const & socket,
                        std::string const & buffer,
                        pie::asio::on_write_type && on_write,
@@ -71,35 +91,40 @@ namespace pie
                 }
                 else
                 {
+                    io_data_ptr->fd = socket.get_handle();
                     io_data_ptr->operation = io_operation::IO_WRITE;
                     io_data_ptr->buffer = buffer;
                     io_data_ptr->on_write = std::move(on_write);
 
-                    io_data_ptr->wsabuf.buf = const_cast<char *>(io_data_ptr->buffer.c_str());
-                    io_data_ptr->wsabuf.len = io_data_ptr->buffer.size();
-
-                    int result = ::WSASend(socket.get_handle(), &io_data_ptr->wsabuf, 1, nullptr, 0, reinterpret_cast<WSAOVERLAPPED*>(&io_data_ptr->ov), nullptr);
-                    if (result != SOCKET_ERROR)
+                    ssize_t result = get_errno_error(::write(io_data_ptr->fd, io_data_ptr->buffer.c_str(), io_data_ptr->buffer.size()));
+                    if (result > 0)
                     {
                         context_manager.assign_pending_context(std::move(io_data_ptr));
                         return true;
                     }
 
-                    ec = std::error_code(::WSAGetLastError(), std::system_category());
-                    if (ec.value() == WSA_IO_PENDING)
+                    if (ec.value() == EAGAIN || ec.value() == EWOULDBLOCK)
                     {
                         ec = make_error_code(std::errc::operation_in_progress);
                         context_manager.assign_pending_context(std::move(io_data_ptr));
                         return true;
                     }
-                    
-                    // Operation failed
-                    context_manager.assign_free_context(std::move(io_data_ptr));
                 }
 
                 return false;
             }
 
+            /*
+             * Writes the specified buffer to the socket.
+             * The buffer is moved and managed by the library.
+             *
+             * @param socket The socket object.
+             * @param buffer A string containiing a buffer.
+             * @param on_write A function object that will be called on completion or i/o error.
+             * @param ec An object that will hold any errors.
+             *
+             * @return True on success; otherwise false.
+             */
             bool write(pie::asio::net::socket const & socket, 
                        std::string && buffer,
                        pie::asio::on_write_type && on_write,
@@ -118,26 +143,20 @@ namespace pie
                     io_data_ptr->operation = io_operation::IO_WRITE;
                     io_data_ptr->buffer = std::move(buffer);
                     io_data_ptr->on_write = std::move(on_write);
-
-                    io_data_ptr->wsabuf.buf = const_cast<char *>(io_data_ptr->buffer.c_str());
-                    io_data_ptr->wsabuf.len = io_data_ptr->buffer.size();
-
-                    int result = ::WSASend(socket.get_handle(), &io_data_ptr->wsabuf, 1, nullptr, 0, reinterpret_cast<WSAOVERLAPPED*>(&io_data_ptr->ov), nullptr);
-                    if (result != SOCKET_ERROR)
+                    
+                    ssize_t result = get_errno_error(::write(io_data_ptr->fd, io_data_ptr->buffer.c_str(), io_data_ptr->buffer.size()));
+                    if (result > 0)
                     {
                         context_manager.assign_pending_context(std::move(io_data_ptr));
                         return true;
                     }
 
-                    ec = std::error_code(::WSAGetLastError(), std::system_category());
-                    if (ec.value() == WSA_IO_PENDING)
+                    if (ec.value() == EAGAIN || ec.value() == WSAEWOULDBLOCK)
                     {
                         ec = make_error_code(std::errc::operation_in_progress);
                         context_manager.assign_pending_context(std::move(io_data_ptr));
                         return true;
                     }
-
-                    context_manager.assign_free_context(std::move(io_data_ptr));
                 }
 
                 return false;

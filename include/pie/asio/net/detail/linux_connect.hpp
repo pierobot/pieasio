@@ -1,11 +1,5 @@
 #pragma once
 
-// --------------------------------------
-//
-// FIX SOCKET BINDER TO USE getaddrinfo
-//
-// --------------------------------------
-
 #include <pie/asio/net/socket.hpp>
 #include <pie/asio/io_operation.hpp>
 #include <pie/asio/net/resolver.hpp>
@@ -19,10 +13,10 @@ namespace pie
         {
             namespace detail
             {
-               bool connect(pie::asio::net::socket const & socket,
-                            pie::asio::net::resolver const & resolver,
-                            pie::asio::io_operation_data::on_connect_type && on_connect,
-                            std::error_code & ec)
+                bool connect(pie::asio::net::socket const & socket,
+                             pie::asio::net::resolver const & resolver,
+                             pie::asio::io_operation_data::on_connect_type && on_connect,
+                             std::error_code & ec)
                 {
                     if (resolver.valid() == true)
                     {
@@ -40,34 +34,35 @@ namespace pie
                         // Assign the on connect handler
                         io_data_ptr->on_connect = std::move(on_connect);
 
-                        sockaddr_in addr_in{};
-                        addr_in.sin_port = ::htons(resolver.get_port());
-                        addr_in.sin_family = socket.get_family();
-                        addr_in.sin_addr.S_un.S_addr = INADDR_ANY;
-
-                        int result = get_errno_error(::bind(socket.get_handle(), reinterpret_cast<sockaddr*>(&addr_in), sizeof(sockaddr)), ec);
-                        if (result == ~0)
+                        // Iterate through the possible addresses
+                        for (auto address_info : resolver)
                         {
-                            return false;
+                            // Attempt to bind the socket to the current address
+                            int result = get_errno_error(::bind(socket.get_handle(), address_info->ai_addr, sizeof(sockaddr)), ec);
+                            if (result == ~0)
+                            {
+                                // Unsuccessful, try the next address
+                                continue;
+                            }
+
+                            // Attempt to connect
+                            result = get_errno_error(::connect(socket.get_handle(), address_info->ai_addr, sizeof(sockaddr)), ec);
+                            // Was the operation successful?
+                            if (result == 0)
+                            {
+                                // Yes
+                                ec = std::error_code();
+                                return true;
+                            }
+                            // No, but it could already be in progress
+                            if (ec.value() == EINPROGRESS)
+                            {
+                                ec = std::make_error_code(std::errc::operation_in_progress);
+                                return true;
+                            }
                         }
 
-                        addr_in.sin_addr.S_un.S_addr = resolver.get_addr();
-
-                        // Attempt to connect
-                        result = get_errno_error(::connect(socket.get_handle(), reinterpret_cast<sockaddr*>(&addr_in), sizeof(sockaddr)), ec);
-                        // Was the operation successful?
-                        if (result == 0)
-                        {
-                            // Yes
-                            ec = std::error_code();
-                            return true;
-                        }
-                        // No, but it could already be in progress
-                        if (ec.value() == EINPROGRESS)
-                        {
-                            ec = std::make_error_code(std::errc::operation_in_progress);
-                            return true;
-                        }
+                        // If execution reaches here, we were unable to bind to an address
                     }
                     else
                     {
@@ -78,6 +73,6 @@ namespace pie
                 }
             }
         }
-     }
- }
+    }
+}
 

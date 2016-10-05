@@ -1,7 +1,11 @@
 #pragma once
 
-#include <Winsock2.h>
-#include <Windows.h>
+#if defined(_WIN32)
+#    include <Winsock2.h>
+#    include <Windows.h>
+#elif defined(__linux__)
+#    include <sys/socket.h>
+#endif
 
 namespace pie
 {
@@ -17,3 +21,4 @@ namespace pie
         }
     }
 }
+

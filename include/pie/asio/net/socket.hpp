@@ -1,19 +1,19 @@
 #pragma once
 
-#ifdef _WIN32
-#   include <pie/asio/net/detail/windows_basic_socket.hpp>
-#else
-#endif
-
 #include <pie/asio/io_service.hpp>
+#include <pie/asio/net/detail/basic_socket.hpp>
 
 namespace pie {
 namespace asio {
 namespace net {
 
+    // Forward declarations
+    class socket;
+    pie::asio::io_service & get_io_service(pie::asio::net::socket const & s);
+
     class socket : public detail::basic_socket
-	{
-	public:
+    {
+    public:
         socket(pie::asio::io_service & io_service) noexcept :
             detail::basic_socket(),
             m_io_service(io_service)
@@ -26,20 +26,22 @@ namespace net {
         {
         }
 
-        socket(pie::asio::io_service & io_service, pie::asio::net::address_family family, std::error_code & ec = std::error_code()) noexcept :
+        socket(pie::asio::io_service & io_service, pie::asio::net::address_family family, std::error_code & ec) noexcept :
             detail::basic_socket(family, ec),
             m_io_service(io_service)
         {
-
         }
-	protected:
-	private:
-        pie::asio::io_service & m_io_service;
 
-        friend auto get_io_service(pie::asio::net::socket const & s) -> decltype(s.m_io_service) &;
-	};
+        virtual ~socket()
+        {
+        }
+    protected:
+    private:
+        pie::asio::io_service & m_io_service;       
+        friend pie::asio::io_service & get_io_service(pie::asio::net::socket const & s);
+    };
 
-    auto get_io_service(pie::asio::net::socket const & s) -> decltype(s.m_io_service) &
+    pie::asio::io_service & get_io_service(pie::asio::net::socket const & s)
     {
         return s.m_io_service;
     }

@@ -1,6 +1,7 @@
 #pragma once
 
-#ifdef _WIN32
+#if defined(_WIN32)
 #   include <pie/asio/net/detail/windows_resolver.hpp>
-#else
+#elif defined(__linux__)
+#   include <pie/asio/net/detail/linux_resolver.hpp>
 #endif

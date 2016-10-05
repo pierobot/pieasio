@@ -6,13 +6,14 @@
 #include <pie/asio/net/socket_type.hpp>
 
 #include <pie/asio/config.hpp>
-#include <pie/asio/translate_error.hpp>
+//#include <pie/asio/translate_error.hpp>
 
 #if defined(_WIN32)
 #   include <MSWSock.h>
 #elif defined(__linux__)
 #   include <errno.h>
 #   include <unistd.h>
+#   include <sys/ioctl.h>
 #   include <sys/socket.h>
 #   include <stropts.h>
 
@@ -47,7 +48,7 @@ namespace pie
                     int result = get_wsa_error(::shutdown(s, how), ec);
 #elif defined(__linux__)
                     int result = get_errno_error(::shutdown(s, how), ec);
-#endif                  
+#endif
                     return result;
                 }
 
@@ -62,16 +63,16 @@ namespace pie
                     return result;
                 }
 
-                inline int set_nonblocking(native_socket_type s, std::error_code & ec) noexcept
+                inline bool set_nonblocking(native_socket_type s, std::error_code & ec) noexcept
                 {
+                     unsigned long arg = 1;
 #if defined(_WIN32)
-                    unsigned long arg = 1;
                     int result = get_wsa_error(::ioctlsocket(s, FIONBIO, &arg), ec);
 #elif defined(__linux__)
                     int result = get_errno_error(::ioctl(s, FIONBIO, &arg), ec);
 #endif
 
-                    return result;
+                    return result == 0;
                 }
 
 #if defined(_WIN32)

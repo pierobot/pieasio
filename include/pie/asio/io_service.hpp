@@ -39,7 +39,7 @@ namespace pie
             }
 
             template<class AssociableObject>
-            bool associate(AssociableObject const & object, std::error_code & ec = std::error_code())
+            bool associate(AssociableObject const & object, std::error_code & ec)
             {
                 static_assert(pie::asio::is_associable<AssociableObject>::value, "Invalid object parameter. It must inherit and implement pie::asio::associable_object.");
 

@@ -39,7 +39,7 @@ namespace pie
                     std::lock_guard<std::mutex> lock(m_available_mutex);
                     size = m_available.size();
                 }
-                
+
                 // Do we have any available contexts?
                 if (size == 0)
                 {
@@ -75,6 +75,9 @@ namespace pie
 
             void assign_free_context(context_pointer_type && context_ptr)
             {
+                // Empty out  the buffer; otherwise we might be holding large chunks
+                context_ptr->buffer = std::string();
+
                 std::lock_guard<std::mutex> lock(m_available_mutex);
                 m_available.push(std::move(context_ptr));
             }

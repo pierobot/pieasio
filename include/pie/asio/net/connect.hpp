@@ -3,9 +3,10 @@
 #include <pie/asio/net/socket.hpp>
 #include <pie/asio/net/resolver.hpp>
 
-#ifdef _WIN32
+#if defined(_WIN32)
 #   include <pie/asio/net/detail/windows_connect.hpp>
-#else
+#elif defined(__linux__)
+#   include <pie/asio/net/detail/linux_connect.hpp>
 #endif
 
 #include <functional>

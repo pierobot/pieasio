@@ -1,7 +1,5 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8 FATAL_ERROR)
 
-project(pie_asio CXX)
-
 INCLUDE(CheckCXXSymbolExists)
 INCLUDE(CheckIncludeFileCXX)
 
@@ -14,7 +12,7 @@ ELSEIF(UNIX)
     SET(SYSTEM_NAME "${CMAKE_SYSTEM_NAME}" CACHE INTERNAL "")
 
     IF (SYSTEM_NAME STREQUAL "Linux")
-#       Use epoll and aio in Linux  
+#       Use epoll and aio in Linux 
         CHECK_INCLUDE_FILE_CXX("sys/epoll.h" HAS_SYS_EPOLL_HEADER)
 
         IF (HAS_SYS_EPOLL_HEADER)
@@ -31,8 +29,9 @@ ENDIF()
 IF(WIN32)
 ELSEIF(UNIX)
     IF (SYSTEM_NAME STREQUAL "Linux")
-        SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall")
+        SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -lpthread")
     ENDIF()
 ENDIF()
 
 ADD_SUBDIRECTORY(tests)
+

@@ -1,21 +1,27 @@
 #include <pie/asio/asio.hpp>
 
+#include <atomic>
+#include <thread>
+#include <mutex>
+#include <iostream>
+
 #define CATCH_CONFIG_RUNNER
 #include "catch.hpp"
 
 pie::asio::io_service g_service;
-std::atomic<bool> g_is_running = true;
+std::atomic<bool> g_is_running(true);
 
 TEST_CASE("sockets")
 {
     SECTION("v4 asynchronous")
     {
         std::error_code socket_error;
+        std::error_code resolver_error;
         std::error_code connect_error;
         std::error_code write_error;
         std::error_code read_error;
-        pie::asio::net::socket socket(g_service, pie::asio::net::v4);
-        pie::asio::net::resolver resolver("pie-vm-01.cloudapp.net", 80);
+        pie::asio::net::socket socket(g_service, pie::asio::net::v4, socket_error);
+        pie::asio::net::resolver resolver("pie-vm-01.cloudapp.net", 80, resolver_error);
         std::atomic<bool> connect_done(false);
         std::atomic<bool> write_done(false);
         std::atomic<bool> read_done(false);
@@ -28,7 +34,14 @@ TEST_CASE("sockets")
                                 "Host: pie-vm-01.cloudapp.net\r\n"
                                 "Connection: close\r\n\r\n");
         std::string response_str;
-        g_service.associate(socket);
+
+        REQUIRE(socket_error.value() == 0);
+        REQUIRE(resolver_error.value() == 0);
+
+        g_service.associate(socket, socket_error);
+
+        socket.set_nonblocking(socket_error); 
+        REQUIRE(socket_error.value() == 0);
 
         connect_result = pie::asio::net::connect(socket, resolver,
             [&](std::error_code const & error)
@@ -103,7 +116,7 @@ int main(int argc, char ** argv)
         g_is_running = false;
         worker.join();
     }
-    
+
     pie::asio::net::finalize();
 
     return result;

@@ -9,7 +9,7 @@ namespace pie
         protected:
             noncopyable() {}
             ~noncopyable() {}
-        private:
+        //private:
             noncopyable(noncopyable const&) = delete;
             noncopyable const & operator=(noncopyable const&) = delete;
         };
